@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>看我笑話 · 投稿</title>
+<style>
+  :root{ --bowen:#3FE0D0; --jie:#FFB23E; }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  body{margin:0; background:#000; color:#fff; min-height:100vh; padding:24px 20px 60px;
+    font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;}
+  h1{font-size:22px; font-weight:800; margin:8px 0 4px;}
+  p.sub{color:#9aa; font-size:13px; margin:0 0 22px;}
+  label{display:block; font-size:15px; font-weight:700; margin:18px 0 8px;}
+  input[type=text]{width:100%; font-size:18px; padding:14px; border-radius:12px;
+    border:2px solid #333; background:#111; color:#fff; outline:none;}
+  input[type=text]:focus{border-color:#666;}
+  .targets{display:flex; gap:12px;}
+  .targets button{flex:1; font-size:20px; font-weight:800; padding:18px 0; border-radius:14px;
+    border:3px solid #333; background:#111; color:#fff;}
+  .targets button[aria-pressed=true].bowen{border-color:var(--bowen); color:var(--bowen); box-shadow:0 0 0 3px rgba(63,224,208,.25);}
+  .targets button[aria-pressed=true].jie{border-color:var(--jie); color:var(--jie); box-shadow:0 0 0 3px rgba(255,178,62,.25);}
+  .sentence{margin:24px 0 6px; font-size:16px; line-height:1.9; color:#bbb;}
+  .sentence b{color:#fff;}
+  .send{width:100%; margin-top:26px; font-size:20px; font-weight:800; padding:18px 0;
+    border:none; border-radius:14px; background:#fff; color:#000;}
+  .send:disabled{opacity:.4;}
+  .toast{position:fixed; left:50%; bottom:30px; transform:translateX(-50%); background:#fff; color:#000;
+    font-weight:800; padding:14px 24px; border-radius:999px; opacity:0; transition:opacity .25s; pointer-events:none;}
+  .toast.show{opacity:1;}
+</style>
+</head>
+<body>
+  <h1>把你想看的演給他們看 🎭</h1>
+  <p class="sub">填完按送出，你的句子會飄上大螢幕</p>
+
+  <label>你的暱稱</label>
+  <input id="nick" type="text" maxlength="12" placeholder="例如：小P">
+
+  <label>你想看誰？</label>
+  <div class="targets">
+    <button type="button" class="bowen" data-t="柏文" aria-pressed="false">柏文</button>
+    <button type="button" class="jie"   data-t="傑哥" aria-pressed="false">傑哥</button>
+  </div>
+
+  <label>一個形容詞</label>
+  <input id="adj" type="text" maxlength="10" placeholder="例如：嬌羞">
+
+  <label>一個身份</label>
+  <input id="role" type="text" maxlength="10" placeholder="例如：主管">
+
+  <div class="sentence" id="preview"></div>
+
+  <button class="send" id="send">送出 →</button>
+  <div class="toast" id="toast">送出成功！</div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+  <script src="firebase-config.js"></script>
+  <script>
+    firebase.initializeApp(firebaseConfig);
+    const subsRef = firebase.database().ref("rooms/" + ROOM + "/submissions");
+
+    let target = null;
+    const $ = id => document.getElementById(id);
+    const btns = document.querySelectorAll('.targets button');
+    btns.forEach(b => b.addEventListener('click', () => {
+      target = b.dataset.t;
+      btns.forEach(x => x.setAttribute('aria-pressed', x === b));
+      updatePreview();
+    }));
+    ['nick','adj','role'].forEach(id => $(id).addEventListener('input', updatePreview));
+
+    function esc(s){ return (s||'').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+    function updatePreview(){
+      const nick = $('nick').value.trim() || '？？';
+      const adj  = $('adj').value.trim()  || '？？';
+      const role = $('role').value.trim() || '？？';
+      $('preview').innerHTML =
+        `「<b>${esc(nick)}</b>」想看到「<b>${esc(target||'？？')}</b>」當「<b>${esc(adj)}</b>」的「<b>${esc(role)}</b>」`;
+    }
+    updatePreview();
+
+    $('send').addEventListener('click', async () => {
+      const nick = $('nick').value.trim(), adj = $('adj').value.trim(), role = $('role').value.trim();
+      if(!nick || !target || !adj || !role){ alert('四格都要填喔！'); return; }
+      $('send').disabled = true;
+      try{
+        await subsRef.push({ nick, target, adj, role, ts: firebase.database.ServerValue.TIMESTAMP });
+        $('toast').classList.add('show'); setTimeout(()=>$('toast').classList.remove('show'), 1400);
+        $('adj').value=''; $('role').value=''; updatePreview();   // 留著暱稱，方便連續投
+      }catch(e){ alert('送出失敗：'+e.message); }
+      finally{ setTimeout(()=>$('send').disabled=false, 600); }
+    });
+  </script>
+</body>
+</html>

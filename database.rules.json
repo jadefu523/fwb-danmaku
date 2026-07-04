@@ -1,0 +1,27 @@
+{
+  "rules": {
+    "rooms": {
+      "$room": {
+        "submissions": {
+          ".read": true,
+          "$id": {
+            "//": "允許『新增』與『修改』；禁止把整筆投稿刪掉（洗庫防呆）",
+            ".write": "!data.exists() || newData.exists()",
+            ".validate": "newData.hasChildren(['nick','target','adj','role','ts'])",
+            "nick":   { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 12" },
+            "target": { ".validate": "newData.isString() && (newData.val() === '柏文' || newData.val() === '傑哥')" },
+            "adj":    { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 10" },
+            "role":   { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 10" },
+            "ts":     { ".validate": "newData.isNumber()" },
+            "status": { ".validate": "newData.isString() && (newData.val() === 'approved' || newData.val() === 'blocked')" },
+            "$other": { ".validate": false }
+          }
+        },
+        "control": {
+          ".read": true,
+          "clearAt": { ".read": true, ".write": true, ".validate": "newData.isNumber()" }
+        }
+      }
+    }
+  }
+}

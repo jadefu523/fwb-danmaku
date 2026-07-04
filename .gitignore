@@ -1,0 +1,12 @@
+.DS_Store
+.claude/
+launch.json
+
+# 只發佈上線真正會用到的檔；以下留在本機、不推上公開 repo
+0426_26subtitle_01.jpg
+DSC07446.jpg
+DSC07446.png
+DSC07452.jpg
+DSC07452.png
+loadtest.html
+看我笑話網頁製作 Learning.md

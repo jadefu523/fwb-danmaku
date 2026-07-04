@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>看我笑話 · 後台</title>
+<style>
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  body{margin:0; background:#0b0b0b; color:#eee; min-height:100vh; padding-bottom:40px;
+    font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;}
+  header{position:sticky; top:0; background:#0b0b0b; border-bottom:1px solid #222; padding:14px 16px 10px; z-index:10;}
+  h1{font-size:17px; margin:0 0 10px;}
+  .tabs{display:flex; gap:8px;}
+  .tabs button{flex:1; font-size:14px; font-weight:700; padding:10px 0; border-radius:9px; border:1px solid #2a2a2a; background:#141414; color:#bbb; cursor:pointer;}
+  .tabs button.on{background:#fff; color:#000; border-color:#fff;}
+  .tabs .badge{display:inline-block; min-width:20px; padding:0 6px; margin-left:4px; border-radius:10px; background:#e0433f; color:#fff; font-size:12px;}
+  .clear{width:calc(100% - 32px); margin:10px 16px 0; padding:11px 0; border:1px solid #e0433f; background:#1a0d0d; color:#ff7b78; font-weight:800; font-size:14px; border-radius:9px; cursor:pointer;}
+
+  ul{list-style:none; margin:0; padding:8px 12px;}
+  li{background:#141414; border:1px solid #242424; border-left:5px solid #555; border-radius:11px; padding:12px 13px; margin:9px 0;}
+  li.held{border-left-color:#e0433f; background:#170f0f;}
+  li.blocked{opacity:.5;}
+  li.approved{border-left-color:#3ddc84;}
+  .sent{font-size:16px; line-height:1.5; font-weight:600;}
+  .sent .br{opacity:.55;}
+  .meta{display:flex; align-items:center; gap:10px; margin-top:6px; font-size:12px; color:#777;}
+  .tag{font-weight:800; padding:1px 8px; border-radius:6px; font-size:12px;}
+  .tag.held{background:#e0433f; color:#fff;} .tag.blocked{background:#333; color:#aaa;}
+  .tag.approved{background:#3ddc84; color:#062; } .tag.live{background:#1d2b1f; color:#7bdc9b;}
+  .acts{display:flex; gap:8px; margin-top:11px;}
+  .acts button{flex:1; padding:10px 0; border:none; border-radius:8px; font-size:14px; font-weight:800; cursor:pointer;}
+  .ok{background:#3ddc84; color:#063;} .no{background:#e0433f; color:#fff;} .undo{background:#222; color:#aaa;}
+  .empty{color:#555; text-align:center; padding:50px 20px; font-size:14px;}
+</style>
+</head>
+<body>
+  <header>
+    <h1>後台彙整區<span style="color:#555; font-weight:400; font-size:13px;">　房間：<span id="room"></span></span></h1>
+    <div class="tabs">
+      <button data-f="pending" class="on">待處理<span class="badge" id="bdg">0</span></button>
+      <button data-f="all">全部</button>
+      <button data-f="blocked">已擋下</button>
+    </div>
+    <button class="clear" id="clearBtn">⚠ 清空大螢幕（緊急）</button>
+  </header>
+  <ul id="list"></ul>
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+  <script src="firebase-config.js"></script>
+  <script src="blocklist.js"></script>
+  <script>
+  firebase.initializeApp(firebaseConfig);
+  const subsRef = firebase.database().ref("rooms/" + ROOM + "/submissions");
+  document.getElementById('room').textContent = ROOM;
+
+  const data = new Map();
+  const q = subsRef.orderByChild('ts').limitToLast(300);
+  q.on('child_added',   s => { data.set(s.key, s.val()); schedule(); });
+  q.on('child_changed', s => { data.set(s.key, s.val()); schedule(); });
+  q.on('child_removed', s => { data.delete(s.key); schedule(); });
+
+  let pending = false;
+  function schedule(){ if(pending) return; pending = true; requestAnimationFrame(() => { pending = false; render(); }); }
+
+  let filter = 'pending';
+  document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => {
+    filter = b.dataset.f;
+    document.querySelectorAll('.tabs button').forEach(x => x.classList.toggle('on', x === b));
+    render();
+  });
+
+  function statusOf(it){
+    if(it.status === 'approved') return 'approved';
+    if(it.status === 'blocked')  return 'blocked';
+    return hitsBlocklist(it) ? 'held' : 'live';
+  }
+  const TAG = { held:'待處理', blocked:'已擋下', approved:'已放行', live:'直播中' };
+  function esc(s){ return (s||'').replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+  function hhmmss(ts){ if(typeof ts !== 'number') return ''; const d = new Date(ts); return d.toLocaleTimeString('zh-TW', {hour12:false}); }
+  function sentence(it){
+    const b = s => `<span class="br">「</span>${esc(s)}<span class="br">」</span>`;
+    return `${b(it.nick)}想看到${b(it.target)}當${b(it.adj)}的${b(it.role)}`;
+  }
+
+  function render(){
+    const arr = [...data.entries()].map(([key, it]) => ({ key, it, st: statusOf(it) }));
+    arr.sort((a, b) => (b.it.ts || 0) - (a.it.ts || 0));
+    document.getElementById('bdg').textContent = arr.filter(x => x.st === 'held').length;
+
+    const shown = arr.filter(x =>
+      filter === 'pending' ? x.st === 'held' :
+      filter === 'blocked' ? x.st === 'blocked' : true);
+
+    const list = document.getElementById('list');
+    if(!shown.length){ list.innerHTML = `<div class="empty">目前沒有${filter==='pending'?'待處理的投稿 🎉':'資料'}</div>`; return; }
+
+    list.innerHTML = shown.map(({key, it, st}) => `
+      <li class="${st}">
+        <div class="sent">${sentence(it)}</div>
+        <div class="meta"><span class="tag ${st}">${TAG[st]}</span><span>${hhmmss(it.ts)}</span></div>
+        <div class="acts">
+          <button class="ok"   data-k="${key}" data-a="approved">放行</button>
+          <button class="no"   data-k="${key}" data-a="blocked">擋下</button>
+          ${it.status ? `<button class="undo" data-k="${key}" data-a="reset">還原</button>` : ''}
+        </div>
+      </li>`).join('');
+  }
+
+  document.getElementById('list').addEventListener('click', e => {
+    const btn = e.target.closest('button[data-a]'); if(!btn) return;
+    const key = btn.dataset.k, a = btn.dataset.a;
+    if(a === 'reset') subsRef.child(key).child('status').remove();
+    else subsRef.child(key).update({ status: a });
+  });
+
+  document.getElementById('clearBtn').onclick = () => {
+    if(confirm('要把大螢幕上現在所有彈幕清空嗎？'))
+      firebase.database().ref('rooms/' + ROOM + '/control/clearAt').set(firebase.database.ServerValue.TIMESTAMP);
+  };
+  </script>
+</body>
+</html>
