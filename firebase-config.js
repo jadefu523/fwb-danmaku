@@ -12,13 +12,13 @@
 //       （長得像 https://xxxx-default-rtdb.asia-southeast1.firebasedatabase.app）
 
 const firebaseConfig = {
-  apiKey:            "PASTE_HERE",
-  authDomain:        "PASTE_HERE",
+  apiKey:            "AIzaSyAlHsn9p74W-cCbbG4CTBG1DL4hS8UssxA",
+  authDomain:        "fwb-2026-app.firebaseapp.com",
   databaseURL:       "https://fwb-2026-app-default-rtdb.asia-southeast1.firebasedatabase.app",   // ← 這行一定要有，是 Realtime Database 的網址
-  projectId:         "PASTE_HERE",
-  storageBucket:     "PASTE_HERE",
-  messagingSenderId: "PASTE_HERE",
-  appId:             "PASTE_HERE",
+  projectId:         "fwb-2026-app",
+  storageBucket:     "fwb-2026-app.firebasestorage.app",
+  messagingSenderId: "616108122168",
+  appId:             "1:616108122168:web:8cf61e4ef5f15d30fc86cd",
 };
 
 // 這場演出用的「房間」代號。要重測 / 換場時改這個字串，資料就乾淨分開、互不干擾。
